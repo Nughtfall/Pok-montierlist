@@ -2,7 +2,7 @@
 
 Production-oriented Pokémon Champions competitive intelligence built with Next.js 16, React 19, TypeScript, Tailwind CSS, PostgreSQL, Prisma 7, Auth.js, Zod, Recharts, Framer Motion, and Lucide.
 
-The repository intentionally contains **no seeded Pokémon, mechanics, regulations, or statistics**. An empty database is the correct starting state until an administrator attaches sources and verification records. The public roster only selects records whose Champions availability is `AVAILABLE`.
+The repository includes an idempotent development seed containing the current 231-species Pokemon Champions roster from the community-maintained Serebii reference. Availability is marked `AVAILABLE`, while competitive records remain separately community-verified or unverified. Production data should still be reviewed through the administrator onboarding workflow.
 
 ## Local setup
 
@@ -12,6 +12,7 @@ Requirements: Node.js 24+, npm 11+, and PostgreSQL.
 cp .env.example .env
 npm install
 npm run db:deploy
+npm run db:seed
 npm run dev
 ```
 
@@ -39,6 +40,7 @@ npm run admin:promote-first  # one-time first-admin promotion using ADMIN_EMAIL
 npm run db:generate  # generate Prisma Client
 npm run db:migrate   # create/apply a development migration
 npm run db:deploy    # apply checked-in migrations in production
+npm run db:seed      # add the current Champions availability roster
 ```
 
 Database integration tests run when `DATABASE_URL` is present and skip otherwise.
