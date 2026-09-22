@@ -1,0 +1,4 @@
+import { AuthForm } from "@/components/auth-form";
+import { signIn } from "@/auth";
+import { PageHeading } from "@/components/ui";
+export default function LoginPage(){const google=Boolean(process.env.AUTH_GOOGLE_ID&&process.env.AUTH_GOOGLE_SECRET);const discord=Boolean(process.env.AUTH_DISCORD_ID&&process.env.AUTH_DISCORD_SECRET);return <><PageHeading eyebrow="Welcome back" title="Sign in" description="Access saved teams, favorites, community tier lists, and your profile."/><AuthForm mode="login"/>{(google||discord)&&<div className="mx-auto mt-4 grid max-w-md grid-cols-2 gap-3">{google&&<form action={async()=>{"use server";await signIn("google",{redirectTo:"/dashboard"})}}><button className="button button-secondary w-full">Google</button></form>}{discord&&<form action={async()=>{"use server";await signIn("discord",{redirectTo:"/dashboard"})}}><button className="button button-secondary w-full">Discord</button></form>}</div>}</>}

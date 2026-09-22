@@ -1,0 +1,603 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ModerationStatus {
+  PUBLISHED
+  HIDDEN
+  REMOVED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  UNAVAILABLE
+  ANNOUNCED
+  UNRELEASED
+  UNVERIFIED
+}
+
+enum VerificationStatus {
+  VERIFIED
+  OFFICIAL
+  COMMUNITY
+  UNVERIFIED
+  UNRELEASED
+  UNAVAILABLE
+}
+
+enum BattleFormat {
+  SINGLES
+  DOUBLES
+}
+
+enum TierRank {
+  S_PLUS
+  S
+  A_PLUS
+  A
+  B_PLUS
+  B
+  C
+  D
+  UNTIERED
+}
+
+enum MoveCategory {
+  PHYSICAL
+  SPECIAL
+  STATUS
+}
+
+enum VoteValue {
+  UP
+  DOWN
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  name               String?
+  username           String?             @unique
+  email              String              @unique
+  emailVerified      DateTime?
+  image               String?
+  passwordHash       String?
+  role                UserRole            @default(USER)
+  status              UserStatus          @default(ACTIVE)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  accounts            Account[]
+  sessions            Session[]
+  teams               Team[]
+  tierLists           CommunityTierList[]
+  votes               Vote[]
+  favorites           Favorite[]
+  comments            Comment[]
+  verifications       DataVerification[]  @relation("VerifiedBy")
+  changes             ChangeLog[]         @relation("ChangedBy")
+
+  @@index([role])
+  @@index([status])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Pokemon {
+  id                 String                 @id @default(cuid())
+  slug               String                 @unique
+  name               String
+  nationalDexNumber  Int?
+  artworkUrl         String?
+  primaryType        String?
+  secondaryType      String?
+  competitiveRole    String?
+  strengths          String[]
+  weaknesses         String[]
+  verificationStatus VerificationStatus     @default(UNVERIFIED)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  forms              PokemonForm[]
+  availability       ChampionsAvailability?
+  regulations        RegulationPokemon[]
+  moves              PokemonMove[]
+  abilities          PokemonAbility[]
+  items              PokemonItem[]
+  tierEntries        TierEntry[]
+  tierHistory        TierHistory[]
+  usageStatistics    UsageStatistic[]
+  teamSlots          TeamPokemon[]
+  communityEntries   CommunityTierEntry[]
+  favorites          Favorite[]
+
+  @@index([name])
+  @@index([verificationStatus])
+}
+
+model PokemonForm {
+  id                 String                @id @default(cuid())
+  pokemonId          String
+  slug               String
+  name               String
+  primaryType        String?
+  secondaryType      String?
+  verificationStatus VerificationStatus    @default(UNVERIFIED)
+  pokemon            Pokemon               @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  regulations        RegulationPokemon[]
+  teamSlots          TeamPokemon[]
+
+  @@unique([pokemonId, slug])
+  @@index([name])
+}
+
+model ChampionsAvailability {
+  id          String             @id @default(cuid())
+  pokemonId   String
+  status      AvailabilityStatus @default(UNVERIFIED)
+  availableAt DateTime?
+  checkedAt   DateTime?
+  notes       String?
+  pokemon     Pokemon            @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+
+  @@unique([pokemonId])
+  @@index([status])
+}
+
+model Regulation {
+  id                 String                 @id @default(cuid())
+  slug               String                 @unique
+  name               String
+  format             BattleFormat
+  description        String?
+  restrictions       String?
+  teamSizeLimit      Int?
+  moveLimit          Int?
+  startsAt           DateTime?
+  endsAt             DateTime?
+  isCurrent          Boolean                @default(false)
+  verificationStatus VerificationStatus     @default(UNVERIFIED)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  pokemon            RegulationPokemon[]
+  moves              RegulationMove[]
+  abilities          RegulationAbility[]
+  items              RegulationItem[]
+  tierLists          TierList[]
+  tierHistory        TierHistory[]
+  usageStatistics    UsageStatistic[]
+  teams              Team[]
+  communityTierLists CommunityTierList[]
+
+  @@index([format, isCurrent])
+  @@index([verificationStatus])
+}
+
+model RegulationPokemon {
+  id           String       @id @default(cuid())
+  regulationId String
+  pokemonId    String
+  formId       String?
+  isLegal      Boolean
+  notes        String?
+  regulation   Regulation   @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  pokemon      Pokemon      @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  form         PokemonForm? @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([regulationId, pokemonId, formId])
+  @@index([regulationId, isLegal])
+  @@index([pokemonId])
+}
+
+model Move {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  type               String?
+  category           MoveCategory?
+  power              Int?
+  accuracy           Int?
+  priority           Int                 @default(0)
+  effect             String?
+  availability       AvailabilityStatus  @default(UNVERIFIED)
+  verificationStatus VerificationStatus  @default(UNVERIFIED)
+  pokemon            PokemonMove[]
+  regulations        RegulationMove[]
+  teamSelections     TeamPokemonMove[]
+
+  @@index([name])
+  @@index([availability])
+}
+
+model PokemonMove {
+  pokemonId   String
+  moveId      String
+  isVerified  Boolean  @default(false)
+  pokemon     Pokemon  @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  move        Move     @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, moveId])
+  @@index([moveId])
+}
+
+model RegulationMove {
+  regulationId String
+  moveId       String
+  isLegal      Boolean
+  regulation   Regulation @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  move         Move       @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@id([regulationId, moveId])
+  @@index([moveId])
+}
+
+model Ability {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  effect             String?
+  availability       AvailabilityStatus  @default(UNVERIFIED)
+  verificationStatus VerificationStatus  @default(UNVERIFIED)
+  pokemon            PokemonAbility[]
+  regulations        RegulationAbility[]
+  teamSelections     TeamPokemon[]
+
+  @@index([name])
+  @@index([availability])
+}
+
+model PokemonAbility {
+  pokemonId  String
+  abilityId  String
+  isVerified Boolean @default(false)
+  pokemon    Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  ability    Ability @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, abilityId])
+  @@index([abilityId])
+}
+
+model RegulationAbility {
+  regulationId String
+  abilityId    String
+  isLegal      Boolean
+  regulation   Regulation @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  ability      Ability    @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+
+  @@id([regulationId, abilityId])
+  @@index([abilityId])
+}
+
+model Item {
+  id                 String              @id @default(cuid())
+  slug               String              @unique
+  name               String
+  effect             String?
+  availability       AvailabilityStatus  @default(UNVERIFIED)
+  verificationStatus VerificationStatus  @default(UNVERIFIED)
+  pokemon            PokemonItem[]
+  regulations        RegulationItem[]
+  teamSelections     TeamPokemon[]
+
+  @@index([name])
+  @@index([availability])
+}
+
+model PokemonItem {
+  pokemonId  String
+  itemId     String
+  isVerified Boolean @default(false)
+  pokemon    Pokemon @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  item       Item    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([pokemonId, itemId])
+  @@index([itemId])
+}
+
+model RegulationItem {
+  regulationId String
+  itemId       String
+  isLegal      Boolean
+  regulation   Regulation @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  item         Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([regulationId, itemId])
+  @@index([itemId])
+}
+
+model TierList {
+  id           String       @id @default(cuid())
+  regulationId String
+  format       BattleFormat
+  name         String
+  publishedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  regulation   Regulation   @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  entries      TierEntry[]
+
+  @@unique([regulationId, format, name])
+  @@index([publishedAt])
+}
+
+model TierEntry {
+  id          String    @id @default(cuid())
+  tierListId  String
+  pokemonId   String
+  tier        TierRank
+  ranking     Int
+  explanation String?
+  rankedAt    DateTime  @default(now())
+  tierList    TierList  @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+  pokemon     Pokemon   @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+
+  @@unique([tierListId, pokemonId])
+  @@unique([tierListId, ranking])
+  @@index([tierListId, tier])
+}
+
+model TierHistory {
+  id           String       @id @default(cuid())
+  pokemonId    String
+  regulationId String
+  format       BattleFormat
+  previousTier TierRank?
+  newTier      TierRank
+  ranking      Int
+  explanation  String?
+  changedAt    DateTime     @default(now())
+  pokemon      Pokemon      @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  regulation   Regulation   @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+
+  @@index([pokemonId, changedAt])
+  @@index([regulationId, format])
+}
+
+model UsageStatistic {
+  id                 String              @id @default(cuid())
+  pokemonId          String
+  regulationId       String
+  format             BattleFormat
+  sampleSize         Int?
+  usageRate          Decimal?            @db.Decimal(7, 4)
+  winRate            Decimal?            @db.Decimal(7, 4)
+  recordedAt         DateTime
+  verificationStatus VerificationStatus  @default(UNVERIFIED)
+  pokemon            Pokemon             @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+  regulation         Regulation          @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+
+  @@unique([pokemonId, regulationId, format, recordedAt])
+  @@index([regulationId, format, recordedAt])
+  @@index([verificationStatus])
+}
+
+model Team {
+  id           String        @id @default(cuid())
+  ownerId      String
+  regulationId String
+  name         String
+  format       BattleFormat
+  shareSlug    String?       @unique
+  isPublic     Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  regulation   Regulation    @relation(fields: [regulationId], references: [id], onDelete: Restrict)
+  pokemon      TeamPokemon[]
+
+  @@index([ownerId, updatedAt])
+  @@index([regulationId, format])
+}
+
+model TeamPokemon {
+  id        String       @id @default(cuid())
+  teamId    String
+  pokemonId String
+  formId    String?
+  abilityId String?
+  itemId    String?
+  position  Int
+  notes     String?
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  pokemon   Pokemon      @relation(fields: [pokemonId], references: [id], onDelete: Restrict)
+  form      PokemonForm? @relation(fields: [formId], references: [id], onDelete: Restrict)
+  ability   Ability?     @relation(fields: [abilityId], references: [id], onDelete: Restrict)
+  item      Item?        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  moves     TeamPokemonMove[]
+
+  @@unique([teamId, position])
+  @@index([teamId])
+  @@index([pokemonId])
+}
+
+model TeamPokemonMove {
+  teamPokemonId String
+  moveId        String
+  position      Int
+  teamPokemon   TeamPokemon @relation(fields: [teamPokemonId], references: [id], onDelete: Cascade)
+  move          Move        @relation(fields: [moveId], references: [id], onDelete: Restrict)
+
+  @@id([teamPokemonId, moveId])
+  @@unique([teamPokemonId, position])
+  @@index([moveId])
+}
+
+model CommunityTierList {
+  id           String               @id @default(cuid())
+  authorId     String
+  regulationId String
+  format       BattleFormat
+  title        String
+  description  String?
+  slug         String               @unique
+  isPublic     Boolean              @default(true)
+  moderationStatus ModerationStatus @default(PUBLISHED)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  author       User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  regulation   Regulation           @relation(fields: [regulationId], references: [id], onDelete: Restrict)
+  entries      CommunityTierEntry[]
+  votes        Vote[]
+  comments     Comment[]
+
+  @@index([authorId, updatedAt])
+  @@index([regulationId, format])
+  @@index([moderationStatus, updatedAt])
+}
+
+model CommunityTierEntry {
+  id          String            @id @default(cuid())
+  tierListId  String
+  pokemonId   String
+  tier        TierRank
+  ranking     Int
+  explanation String?
+  tierList    CommunityTierList @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+  pokemon     Pokemon          @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+
+  @@unique([tierListId, pokemonId])
+  @@unique([tierListId, ranking])
+  @@index([tierListId, tier])
+}
+
+model Vote {
+  id         String            @id @default(cuid())
+  userId     String
+  tierListId String
+  value      VoteValue
+  createdAt  DateTime          @default(now())
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tierList   CommunityTierList @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tierListId])
+  @@index([tierListId, value])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  pokemonId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pokemon   Pokemon  @relation(fields: [pokemonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pokemonId])
+  @@index([pokemonId])
+}
+
+model Comment {
+  id         String            @id @default(cuid())
+  authorId   String
+  tierListId String
+  parentId   String?
+  content    String
+  moderationStatus ModerationStatus @default(PUBLISHED)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  author     User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  tierList   CommunityTierList @relation(fields: [tierListId], references: [id], onDelete: Cascade)
+  parent     Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[]         @relation("CommentReplies")
+
+  @@index([tierListId, createdAt])
+  @@index([authorId])
+  @@index([moderationStatus, createdAt])
+}
+
+model DataSource {
+  id            String             @id @default(cuid())
+  name          String
+  url           String
+  publisher     String?
+  isOfficial    Boolean            @default(false)
+  accessedAt    DateTime?
+  notes         String?
+  createdAt     DateTime           @default(now())
+  verifications DataVerification[]
+
+  @@unique([url])
+  @@index([isOfficial])
+}
+
+model DataVerification {
+  id         String             @id @default(cuid())
+  entityType String
+  entityId   String
+  sourceId   String
+  status     VerificationStatus @default(UNVERIFIED)
+  checkedAt  DateTime?
+  verifiedById String?
+  notes      String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  source     DataSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  verifiedBy User?              @relation("VerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([status, checkedAt])
+  @@index([sourceId])
+}
+
+model ChangeLog {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  summary     String
+  before      Json?
+  after       Json?
+  changedById String?
+  createdAt   DateTime @default(now())
+  changedBy   User?    @relation("ChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([changedById])
+}

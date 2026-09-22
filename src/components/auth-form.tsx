@@ -1,0 +1,7 @@
+"use client";
+import { useActionState } from "react";
+import Link from "next/link";
+import { login,register,type AuthState } from "@/app/actions/auth";
+const initial:AuthState={};
+export function AuthForm({mode}:{mode:"login"|"register"}){const[state,action,pending]=useActionState(mode==="login"?login:register,initial);return <form action={action} className="surface mx-auto max-w-md space-y-4 p-7">{mode==="register"&&<><Field name="name" label="Display name"/><Field name="username" label="Username"/></>}<Field name="email" label="Email" type="email"/><Field name="password" label="Password" type="password" help={mode==="register"?"12–128 characters":""}/>{state.message&&<p className="rounded-lg border border-rose-400/20 bg-rose-400/[.06] p-3 text-sm text-rose-200" aria-live="polite">{state.message}</p>}<button disabled={pending} className="button button-primary w-full">{pending?"Please wait…":mode==="login"?"Sign in":"Create account"}</button><p className="muted text-center text-xs">{mode==="login"?<>New here? <Link className="text-cyan-300" href="/register">Create an account</Link></>:<>Already registered? <Link className="text-cyan-300" href="/login">Sign in</Link></>}</p></form>}
+function Field({name,label,type="text",help}:{name:string;label:string;type?:string;help?:string}){return <label className="block"><span className="label">{label}</span><input className="input" name={name} type={type} required autoComplete={name}/>{help&&<span className="muted mt-1 block text-[11px]">{help}</span>}</label>}
